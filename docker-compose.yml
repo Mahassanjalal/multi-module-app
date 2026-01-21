@@ -3,27 +3,27 @@ version: "3.8"
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: postgres:14-alpine
     container_name: postgres
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: actora
       POSTGRES_PASSWORD: actora123
-      POSTGRES_MULTIPLE_DATABASES: authdb,userdb,orderdb
+      POSTGRES_DB: actora
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
+      - ./docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U actora"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U actora -d actora"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 10s
     networks:
       - microservices-network
 
-  # Discovery Server (Eureka) - must start first
+  # Discovery Server (Eureka)
   discovery-server:
     build: ./discovery-server
     container_name: discovery-server
@@ -32,15 +32,15 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - microservices-network
 
-  # Config Server - depends on discovery server
+  # Config Server
   config-server:
     build: ./config-server
     container_name: config-server
@@ -53,15 +53,15 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - microservices-network
 
-  # Auth Service - Authentication and Authorization
+  # Auth Service
   auth-service:
     build: ./auth-service
     container_name: auth-service
@@ -79,15 +79,15 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 60s
     networks:
       - microservices-network
 
-  # User Service - depends on discovery, config servers, and postgres
+  # User Service
   user-service:
     build: ./user-service
     container_name: user-service
@@ -96,27 +96,24 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
-      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/userdb
       - SPRING_DATASOURCE_USERNAME=actora
       - SPRING_DATASOURCE_PASSWORD=actora123
     depends_on:
       discovery-server:
         condition: service_healthy
-      config-server:
-        condition: service_healthy
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 60s
     networks:
       - microservices-network
 
-  # Order Service - depends on discovery, config servers, user service, and postgres
+  # Order Service
   order-service:
     build: ./order-service
     container_name: order-service
@@ -125,29 +122,26 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
-      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/orderdb
       - SPRING_DATASOURCE_USERNAME=actora
       - SPRING_DATASOURCE_PASSWORD=actora123
     depends_on:
       discovery-server:
         condition: service_healthy
-      config-server:
+      postgres:
         condition: service_healthy
       user-service:
         condition: service_healthy
-      postgres:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 60s
     networks:
       - microservices-network
 
-  # API Gateway - depends on discovery and config servers
+  # API Gateway
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
@@ -156,19 +150,16 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
-      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
     depends_on:
       discovery-server:
-        condition: service_healthy
-      config-server:
         condition: service_healthy
       auth-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 60s
     networks:
       - microservices-network
