@@ -74,7 +74,8 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 | **Cloud** | Spring Cloud | 2023.0.0 |
 | **Security** | Spring Security | 6.x |
 | **JWT** | JJWT | 0.12.3 |
-| **Database** | H2 (In-memory) | - |
+| **Database** | PostgreSQL | 16 |
+| **Database (Dev)** | H2 (In-memory) | - |
 | **ORM** | Spring Data JPA | - |
 | **Build** | Maven | 3.9+ |
 | **Mapping** | MapStruct | 1.5.5 |
@@ -389,9 +390,18 @@ curl http://localhost:8081/actuator/health
 | `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE` | Eureka server URL | `http://localhost:8761/eureka/` |
 | `SPRING_CLOUD_CONFIG_URI` | Config server URL | `http://localhost:8888` |
 | `SPRING_PROFILES_ACTIVE` | Active Spring profile | `default` |
+| `SPRING_DATASOURCE_URL` | Database JDBC URL | (H2 in-memory) |
+| `SPRING_DATASOURCE_USERNAME` | Database username | `sa` |
+| `SPRING_DATASOURCE_PASSWORD` | Database password | (empty) |
 | `JWT_SECRET` | JWT signing secret | (configured in properties) |
 | `JWT_ACCESS_TOKEN_EXPIRATION` | Access token expiry (ms) | `3600000` (1 hour) |
 | `JWT_REFRESH_TOKEN_EXPIRATION` | Refresh token expiry (ms) | `86400000` (24 hours) |
+
+### Profiles
+| Profile | Description | Database |
+|---------|-------------|----------|
+| `default` | Local development | H2 In-memory |
+| `docker` | Docker deployment | PostgreSQL |
 
 ### JWT Configuration (auth-service)
 ```properties
@@ -407,6 +417,10 @@ multi-module-app/
 ├── pom.xml                         # Parent POM with dependency management
 ├── docker-compose.yml              # Docker orchestration
 ├── README.md                       # This file
+│
+├── docker/                         # 🐳 DOCKER CONFIGURATION
+│   └── postgres/
+│       └── init-multi-db.sh        # Multi-database initialization script
 │
 ├── common-lib/                     # 🔧 SHARED LIBRARY
 │   └── src/main/java/com/actora/common/
@@ -496,12 +510,21 @@ multi-module-app/
 
 | Container | Image | Port | Health Check |
 |-----------|-------|------|--------------|
+| postgres | postgres:16-alpine | 5432 | pg_isready |
 | discovery-server | Custom | 8761 | /actuator/health |
 | config-server | Custom | 8888 | /actuator/health |
 | auth-service | Custom | 8090 | /actuator/health |
 | api-gateway | Custom | 8080 | /actuator/health |
 | user-service | Custom | 8081 | /actuator/health |
 | order-service | Custom | 8082 | /actuator/health |
+
+### Database Configuration
+
+| Service | Database | Credentials |
+|---------|----------|-------------|
+| auth-service | authdb | actora / actora123 |
+| user-service | userdb | actora / actora123 |
+| order-service | orderdb | actora / actora123 |
 
 ## 🤝 Contributing
 
