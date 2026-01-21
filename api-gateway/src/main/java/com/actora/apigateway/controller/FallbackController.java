@@ -30,6 +30,12 @@ public class FallbackController {
                 .body(buildFallbackResponse("Order Service is currently unavailable. Please try again later.")));
     }
 
+    @GetMapping("auth")
+    public Mono<ResponseEntity<Map<String, Object>>> authServiceFallback() {
+        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(buildFallbackResponse("Authentication Service is currently unavailable. Please try again later.")));
+    }
+
     @GetMapping("/default")
     public Mono<ResponseEntity<Map<String, Object>>> defaultFallback() {
         return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)

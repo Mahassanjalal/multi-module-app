@@ -10,6 +10,7 @@ import com.actora.userservice.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,15 +34,18 @@ import java.util.List;
 @RequestMapping("/users")
 @RequiredArgsConstructor
 @Tag(name = "User Management", description = "APIs for managing users")
+@SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
     private final UserService userService;
 
     @PostMapping
-    @Operation(summary = "Create a new user", description = "Creates a new user with the provided information")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Create a new user", description = "Creates a new user (Admin/Manager only)")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "User created successfully"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "User with email already exists")
     })
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
@@ -52,11 +57,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
     @Operation(summary = "Get user by ID", description = "Retrieves a user by their unique identifier")
-    @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
-    })
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(
             @Parameter(description = "User ID") @PathVariable Long id) {
         log.info("REST request to get user with ID: {}", id);
@@ -65,11 +67,8 @@ public class UserController {
     }
 
     @GetMapping("/email/{email}")
-    @Operation(summary = "Get user by email", description = "Retrieves a user by their email address")
-    @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
-    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Get user by email", description = "Retrieves a user by email (Admin/Manager only)")
     public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(
             @Parameter(description = "User email") @PathVariable String email) {
         log.info("REST request to get user with email: {}", email);
@@ -78,7 +77,8 @@ public class UserController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all users", description = "Retrieves all users with pagination and sorting")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Get all users", description = "Retrieves all users with pagination (Admin/Manager only)")
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(
             @Parameter(description = "Page number (0-based)") @RequestParam(name = "page", defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(name = "size", defaultValue = "10") int size,
@@ -104,7 +104,8 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search users", description = "Search users by name or email with optional status filter")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Search users", description = "Search users by name or email (Admin/Manager only)")
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> searchUsers(
             @Parameter(description = "Search term (name or email)") @RequestParam(required = false) String q,
             @Parameter(description = "Filter by status") @RequestParam(required = false) User.UserStatus status,
@@ -126,7 +127,8 @@ public class UserController {
     }
 
     @GetMapping("/status/{status}")
-    @Operation(summary = "Get users by status", description = "Retrieves all users with a specific status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Get users by status", description = "Retrieves all users by status (Admin/Manager only)")
     public ResponseEntity<ApiResponse<List<UserResponse>>> getUsersByStatus(
             @Parameter(description = "User status") @PathVariable User.UserStatus status) {
         log.info("REST request to get users with status: {}", status);
@@ -135,12 +137,8 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update user", description = "Updates an existing user's information")
-    @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated successfully"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Email already in use")
-    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Update user", description = "Updates an existing user (Admin/Manager only)")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @Parameter(description = "User ID") @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request) {
@@ -150,11 +148,8 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete user", description = "Deletes a user by their ID")
-    @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "User deleted successfully"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
-    })
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Delete user", description = "Deletes a user (Admin only)")
     public ResponseEntity<Void> deleteUser(
             @Parameter(description = "User ID") @PathVariable Long id) {
         log.info("REST request to delete user with ID: {}", id);
@@ -163,7 +158,7 @@ public class UserController {
     }
 
     @GetMapping("/exists/{id}")
-    @Operation(summary = "Check if user exists", description = "Checks if a user exists by ID")
+    @Operation(summary = "Check if user exists", description = "Public endpoint to check user existence")
     public ResponseEntity<ApiResponse<Boolean>> existsById(
             @Parameter(description = "User ID") @PathVariable Long id) {
         boolean exists = userService.existsById(id);
@@ -171,7 +166,7 @@ public class UserController {
     }
 
     @GetMapping("/health")
-    @Operation(summary = "Health check", description = "Simple health check endpoint")
+    @Operation(summary = "Health check", description = "Public health check endpoint")
     public ResponseEntity<ApiResponse<String>> healthCheck() {
         return ResponseEntity.ok(ApiResponse.success("User Service is running!", "Health check passed"));
     }

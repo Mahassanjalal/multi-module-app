@@ -92,6 +92,7 @@
 			<groupId>org.mapstruct</groupId>
 			<artifactId>mapstruct</artifactId>
 		</dependency>
+		<!-- Note: Spring Security is inherited from common-lib -->
 	</dependencies>
 
 	<build>

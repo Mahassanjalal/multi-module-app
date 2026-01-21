@@ -65,6 +65,8 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 - **Java 21** - Latest LTS version
 - **Spring Boot 3.2.2** - Latest stable version
 - **Spring Cloud 2023.0.0** - Cloud-native features
+- **Spring Security** - Authentication & Authorization
+- **JWT (JJWT 0.12.3)** - Token-based authentication
 - **Maven** - Build tool
 - **H2 Database** - In-memory database (demo)
 - **Lombok** - Boilerplate reduction
@@ -72,6 +74,45 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 - **SpringDoc OpenAPI** - API documentation
 - **Resilience4j** - Circuit breaker
 - **Docker & Docker Compose** - Containerization
+
+## 🔐 Security & Authentication
+
+### Roles & Permissions
+
+| Role | Description | Permissions |
+|------|-------------|-------------|
+| `ROLE_ADMIN` | Full system access | All operations including delete |
+| `ROLE_MANAGER` | Management access | Create/Update users, manage orders |
+| `ROLE_USER` | Basic user access | View own data, create orders |
+
+### Protected Endpoints
+
+#### User Service
+| Endpoint | ADMIN | MANAGER | USER |
+|----------|-------|---------|------|
+| `GET /users` | ✅ | ✅ | ❌ |
+| `GET /users/{id}` | ✅ | ✅ | ✅ |
+| `POST /users` | ✅ | ✅ | ❌ |
+| `PUT /users/{id}` | ✅ | ✅ | ❌ |
+| `DELETE /users/{id}` | ✅ | ❌ | ❌ |
+
+#### Order Service
+| Endpoint | ADMIN | MANAGER | USER |
+|----------|-------|---------|------|
+| `GET /orders` | ✅ | ✅ | ✅ |
+| `POST /orders` | ✅ | ✅ | ✅ |
+| `PUT /orders/{id}` | ✅ | ✅ | ✅ |
+| `PATCH /orders/{id}/status` | ✅ | ✅ | ❌ |
+| `DELETE /orders/{id}` | ✅ | ❌ | ❌ |
+| `GET /orders/statistics` | ✅ | ✅ | ❌ |
+
+### Test Users
+
+| Username | Password | Roles |
+|----------|----------|-------|
+| `admin` | `password123` | ADMIN, MANAGER, USER |
+| `manager` | `password123` | MANAGER, USER |
+| `user` | `password123` | USER |
 
 ## 🚦 Getting Started
 
@@ -101,13 +142,16 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
    # Terminal 2 - Config Server (after discovery is up)
    cd config-server && mvn spring-boot:run
 
-   # Terminal 3 - API Gateway
+   # Terminal 3 - Auth Service
+   cd auth-service && mvn spring-boot:run
+
+   # Terminal 4 - API Gateway
    cd api-gateway && mvn spring-boot:run
 
-   # Terminal 4 - User Service
+   # Terminal 5 - User Service
    cd user-service && mvn spring-boot:run
 
-   # Terminal 5 - Order Service
+   # Terminal 6 - Order Service
    cd order-service && mvn spring-boot:run
    ```
 
@@ -131,6 +175,7 @@ docker-compose down
 
 Once services are running, access Swagger UI:
 
+- **Auth Service**: http://localhost:8090/swagger-ui.html
 - **User Service**: http://localhost:8081/swagger-ui.html
 - **Order Service**: http://localhost:8082/swagger-ui.html
 - **API Gateway (Aggregated)**: http://localhost:8080/swagger-ui.html
@@ -139,6 +184,15 @@ Once services are running, access Swagger UI:
 
 ### Eureka Dashboard
 - http://localhost:8761
+
+### Auth Service API (Public - No Token Required)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Register a new user |
+| POST | `/auth/login` | Login and get JWT tokens |
+| POST | `/auth/refresh` | Refresh access token |
+| POST | `/auth/logout` | Logout and invalidate tokens |
+| GET | `/auth/validate` | Validate JWT token |
 
 ### User Service API
 | Method | Endpoint | Description |
@@ -167,8 +221,9 @@ Once services are running, access Swagger UI:
 
 ### Via API Gateway
 All endpoints are accessible through the gateway with `/api` prefix:
-- User Service: `http://localhost:8080/api/users/**`
-- Order Service: `http://localhost:8080/api/orders/**`
+- Auth Service: `http://localhost:8080/api/auth/**` (No token required)
+- User Service: `http://localhost:8080/api/users/**` (Token required)
+- Order Service: `http://localhost:8080/api/orders/**` (Token required)
 
 ## 📊 Health & Metrics
 
@@ -180,10 +235,39 @@ All endpoints are accessible through the gateway with `/api` prefix:
 
 ## 🧪 Sample Requests
 
-### Create User
+### 1. Login and Get Token
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "password123"
+  }'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 3600,
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "roles": ["ROLE_ADMIN", "ROLE_MANAGER", "ROLE_USER"]
+    }
+  }
+}
+```
+
+### 2. Create User (with Token)
 ```bash
 curl -X POST http://localhost:8080/api/users \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
   -d '{
     "firstName": "John",
     "lastName": "Doe",
@@ -193,10 +277,11 @@ curl -X POST http://localhost:8080/api/users \
   }'
 ```
 
-### Create Order
+### 3. Create Order (with Token)
 ```bash
 curl -X POST http://localhost:8080/api/orders \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
   -d '{
     "userId": 1,
     "description": "Test order",
@@ -209,6 +294,15 @@ curl -X POST http://localhost:8080/api/orders \
         "unitPrice": 29.99
       }
     ]
+  }'
+```
+
+### 4. Refresh Token
+```bash
+curl -X POST http://localhost:8080/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "<refresh_token>"
   }'
 ```
 

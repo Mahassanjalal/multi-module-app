@@ -8,6 +8,7 @@ import com.actora.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +32,7 @@ import java.util.List;
 @RequestMapping("/orders")
 @RequiredArgsConstructor
 @Tag(name = "Order Management", description = "APIs for managing orders")
+@SecurityRequirement(name = "bearerAuth")
 public class OrderController {
 
     private final OrderService orderService;
@@ -198,10 +201,12 @@ public class OrderController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete order", description = "Deletes an order by its ID")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Delete order", description = "Deletes an order (Admin only)")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Order deleted successfully"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
     })
     public ResponseEntity<Void> deleteOrder(
             @Parameter(description = "Order ID") @PathVariable Long id) {
@@ -211,7 +216,8 @@ public class OrderController {
     }
 
     @GetMapping("/statistics")
-    @Operation(summary = "Get order statistics", description = "Retrieves order statistics by status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Get order statistics", description = "Retrieves order statistics (Admin/Manager only)")
     public ResponseEntity<ApiResponse<OrderService.OrderStatistics>> getOrderStatistics() {
         log.info("REST request to get order statistics");
         OrderService.OrderStatistics statistics = orderService.getOrderStatistics();
@@ -219,7 +225,7 @@ public class OrderController {
     }
 
     @GetMapping("/health")
-    @Operation(summary = "Health check", description = "Simple health check endpoint")
+    @Operation(summary = "Health check", description = "Public health check endpoint")
     public ResponseEntity<ApiResponse<String>> healthCheck() {
         return ResponseEntity.ok(ApiResponse.success("Order Service is running!", "Health check passed"));
     }
