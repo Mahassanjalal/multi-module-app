@@ -1,33 +1,28 @@
 # Multi-Module Microservices Application
 
-A professional-grade Spring Boot microservices architecture demonstrating best practices for building cloud-native applications.
+A professional-grade Spring Boot microservices architecture demonstrating best practices for building cloud-native applications with **JWT-based authentication**, **role-based authorization**, and **clean architecture** principles.
 
 ## 🏗️ Architecture Overview
 
 ```
-                                    ┌─────────────────┐
-                                    │   API Gateway   │
-                                    │   (Port 8080)   │
-                                    └────────┬────────┘
-                                             │
-                    ┌────────────────────────┼────────────────────────┐
-                    │                        │                        │
-           ┌────────▼────────┐      ┌────────▼────────┐      ┌────────▼────────┐
-           │  User Service   │      │  Order Service  │      │  Other Services │
-           │   (Port 8081)   │◄────►│   (Port 8082)   │      │      (...)      │
-           └────────┬────────┘      └────────┬───��────┘      └─────────────────┘
-                    │                        │
-                    └────────────┬───────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │    Discovery Server     │
-                    │      (Port 8761)        │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │     Config Server       │
-                    │      (Port 8888)        │
-                    └───────────��─────────────┘
+                                    ┌─────────────────────┐
+                                    │     API Gateway     │
+                                    │     (Port 8080)     │
+                                    │   JWT Validation    │
+                                    └──────────┬──────────┘
+                                               │
+       ┌───────────────┬───────────────────────┼───────────────────────┬───────────────┐
+       │               │                       │                       │               │
+┌──────▼──────┐ ┌──────▼──────┐ ┌──────────────▼──────────────┐ ┌──────▼──────┐ ┌──────▼──────┐
+│Auth Service │ │User Service │ │       Order Service         │ │Config Server│ │  Discovery  │
+│ (Port 8090) │ │ (Port 8081) │ │       (Port 8082)           │ │ (Port 8888) │ │ (Port 8761) │
+│  JWT Issue  │ │   Secured   │ │         Secured             │ └─────────────┘ └─────���───────┘
+└─────────────┘ └──────┬──────┘ └──────────────┬──────────────┘
+                       │                       │
+                       │    ┌─────────────┐    │
+                       └────►  common-lib  ◄───┘
+                            │  (Shared)   │
+                            └─────────────┘
 ```
 
 ## 🚀 Features
@@ -35,15 +30,24 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 ### Core Features
 - **Service Discovery** - Netflix Eureka for service registration and discovery
 - **Centralized Configuration** - Spring Cloud Config Server with native profile support
-- **API Gateway** - Spring Cloud Gateway with routing, load balancing, and circuit breaker
+- **API Gateway** - Spring Cloud Gateway with routing, load balancing, and JWT authentication
 - **Inter-Service Communication** - OpenFeign with circuit breaker (Resilience4j)
 
+### Security Features
+- **JWT Authentication** - Stateless token-based authentication
+- **Role-Based Access Control (RBAC)** - ADMIN, MANAGER, USER roles
+- **Gateway-Level Security** - JWT validation at API Gateway
+- **Method-Level Security** - @PreAuthorize annotations for fine-grained access control
+- **Secure Password Storage** - BCrypt password encoding
+- **Refresh Token Support** - Token refresh without re-authentication
+- **Shared Security Components** - Centralized in common-lib (DRY principle)
+
 ### Professional Features
+- **Clean Architecture** - Shared code in common-lib, no duplication
 - **Global Exception Handling** - Consistent error responses across all services
 - **API Documentation** - OpenAPI 3.0 (Swagger UI) for all services
 - **Health Checks** - Spring Boot Actuator with Prometheus metrics
 - **Circuit Breaker Pattern** - Resilience4j for fault tolerance
-- **Request Correlation** - Correlation ID tracking across services
 - **Pagination & Sorting** - Standardized paginated responses
 - **Validation** - Bean validation with detailed error messages
 - **MapStruct** - Type-safe object mapping
@@ -51,31 +55,56 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 
 ## 📦 Modules
 
-| Module | Description | Port |
-|--------|-------------|------|
-| `discovery-server` | Eureka Service Discovery | 8761 |
-| `config-server` | Centralized Configuration | 8888 |
-| `api-gateway` | API Gateway & Routing | 8080 |
-| `common-lib` | Shared DTOs, Exceptions, Utilities | - |
-| `user-service` | User Management Microservice | 8081 |
-| `order-service` | Order Management Microservice | 8082 |
+| Module | Description | Port | Dependencies |
+|--------|-------------|------|--------------|
+| `discovery-server` | Eureka Service Discovery | 8761 | - |
+| `config-server` | Centralized Configuration | 8888 | discovery-server |
+| `api-gateway` | API Gateway, JWT Validation & Routing | 8080 | discovery-server, config-server |
+| `auth-service` | Authentication & Authorization (JWT) | 8090 | common-lib, user-service |
+| `common-lib` | Shared DTOs, Exceptions, Security, Utilities | - | - |
+| `user-service` | User Management Microservice | 8081 | common-lib |
+| `order-service` | Order Management Microservice | 8082 | common-lib, user-service |
 
 ## 🛠️ Technology Stack
 
-- **Java 21** - Latest LTS version
-- **Spring Boot 3.2.2** - Latest stable version
-- **Spring Cloud 2023.0.0** - Cloud-native features
-- **Spring Security** - Authentication & Authorization
-- **JWT (JJWT 0.12.3)** - Token-based authentication
-- **Maven** - Build tool
-- **H2 Database** - In-memory database (demo)
-- **Lombok** - Boilerplate reduction
-- **MapStruct** - Object mapping
-- **SpringDoc OpenAPI** - API documentation
-- **Resilience4j** - Circuit breaker
-- **Docker & Docker Compose** - Containerization
+| Category | Technology | Version |
+|----------|------------|---------|
+| **Language** | Java | 21 (LTS) |
+| **Framework** | Spring Boot | 3.2.2 |
+| **Cloud** | Spring Cloud | 2023.0.0 |
+| **Security** | Spring Security | 6.x |
+| **JWT** | JJWT | 0.12.3 |
+| **Database** | H2 (In-memory) | - |
+| **ORM** | Spring Data JPA | - |
+| **Build** | Maven | 3.9+ |
+| **Mapping** | MapStruct | 1.5.5 |
+| **Documentation** | SpringDoc OpenAPI | 2.3.0 |
+| **Resilience** | Resilience4j | - |
+| **Containerization** | Docker & Docker Compose | - |
 
 ## 🔐 Security & Authentication
+
+### Architecture: Separation of Concerns
+
+```
+┌���────────────────────┐          ┌─────────────────────┐
+│    auth-service     │          │   user-service      │
+├─────────────────────┤  Feign   ├─────────────────────┤
+│ auth_users table:   │ ──────►  │ users table:        │
+│ - id                │          │ - id ◄──────────────┤
+│ - user_id ──────────┼──────────┼──(FK reference)     │
+│ - username          │          │ - first_name        │
+│ - email             │          │ - last_name         │
+│ - password (hashed) │          │ - email             │
+│ - roles             │          │ - phone             │
+└─────────────────────┘          │ - address           │
+         ↓                       │ - status            │
+  Auth concerns ONLY             └─────────────────────┘
+  - Credentials                          ↓
+  - Roles/Permissions           Profile data ONLY
+  - JWT Tokens                  - Personal info
+                                - Contact details
+```
 
 ### Roles & Permissions
 
@@ -88,31 +117,43 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 ### Protected Endpoints
 
 #### User Service
-| Endpoint | ADMIN | MANAGER | USER |
-|----------|-------|---------|------|
-| `GET /users` | ✅ | ✅ | ❌ |
-| `GET /users/{id}` | ✅ | ✅ | ✅ |
-| `POST /users` | ✅ | ✅ | ❌ |
-| `PUT /users/{id}` | ✅ | ✅ | ❌ |
-| `DELETE /users/{id}` | ✅ | ❌ | ❌ |
+| Endpoint | Method | ADMIN | MANAGER | USER | Description |
+|----------|--------|:-----:|:-------:|:----:|-------------|
+| `/users` | GET | ✅ | ✅ | ❌ | Get all users |
+| `/users/{id}` | GET | ✅ | ✅ | ✅ | Get user by ID |
+| `/users/email/{email}` | GET | ✅ | ✅ | ❌ | Get user by email |
+| `/users/search` | GET | ✅ | ✅ | ❌ | Search users |
+| `/users/status/{status}` | GET | ✅ | ✅ | ❌ | Get users by status |
+| `/users` | POST | ✅ | ✅ | ❌ | Create user |
+| `/users/{id}` | PUT | ✅ | ✅ | ❌ | Update user |
+| `/users/{id}` | DELETE | ✅ | ❌ | ❌ | Delete user |
+| `/users/health` | GET | 🔓 | 🔓 | 🔓 | Health check (public) |
+| `/users/exists/{id}` | GET | 🔓 | 🔓 | 🔓 | Check exists (public) |
 
 #### Order Service
-| Endpoint | ADMIN | MANAGER | USER |
-|----------|-------|---------|------|
-| `GET /orders` | ✅ | ✅ | ✅ |
-| `POST /orders` | ✅ | ✅ | ✅ |
-| `PUT /orders/{id}` | ✅ | ✅ | ✅ |
-| `PATCH /orders/{id}/status` | ✅ | ✅ | ❌ |
-| `DELETE /orders/{id}` | ✅ | ❌ | ❌ |
-| `GET /orders/statistics` | ✅ | ✅ | ❌ |
+| Endpoint | Method | ADMIN | MANAGER | USER | Description |
+|----------|--------|:-----:|:-------:|:----:|-------------|
+| `/orders` | GET | ✅ | ✅ | ✅ | Get all orders |
+| `/orders/{id}` | GET | ✅ | ✅ | ✅ | Get order by ID |
+| `/orders/user/{userId}` | GET | ✅ | ✅ | ✅ | Get orders by user |
+| `/orders/search` | GET | ✅ | ✅ | ✅ | Search orders |
+| `/orders` | POST | ✅ | ✅ | ✅ | Create order |
+| `/orders/{id}` | PUT | ✅ | ✅ | ✅ | Update order |
+| `/orders/{id}/status` | PATCH | ✅ | ✅ | ❌ | Update status |
+| `/orders/{id}/cancel` | POST | ✅ | ✅ | ✅ | Cancel order |
+| `/orders/{id}` | DELETE | ✅ | ❌ | ❌ | Delete order |
+| `/orders/statistics` | GET | ✅ | ✅ | ❌ | Get statistics |
+| `/orders/health` | GET | 🔓 | 🔓 | 🔓 | Health check (public) |
 
-### Test Users
+✅ = Allowed | ❌ = Denied | 🔓 = Public (no auth required)
 
-| Username | Password | Roles |
-|----------|----------|-------|
-| `admin` | `password123` | ADMIN, MANAGER, USER |
-| `manager` | `password123` | MANAGER, USER |
-| `user` | `password123` | USER |
+### Test Users (Pre-configured)
+
+| Username | Password | Roles | User ID |
+|----------|----------|-------|---------|
+| `admin` | `password123` | ADMIN, MANAGER, USER | 1 |
+| `manager` | `password123` | MANAGER, USER | 2 |
+| `user` | `password123` | USER | 3 |
 
 ## 🚦 Getting Started
 
@@ -131,29 +172,33 @@ A professional-grade Spring Boot microservices architecture demonstrating best p
 
 2. **Build all modules**
    ```bash
-   mvn clean install
+   mvn clean install -DskipTests
    ```
 
-3. **Start services in order**
+3. **Start services in order** (each in a separate terminal)
    ```bash
-   # Terminal 1 - Discovery Server
+   # 1. Discovery Server (wait until started)
    cd discovery-server && mvn spring-boot:run
 
-   # Terminal 2 - Config Server (after discovery is up)
+   # 2. Config Server
    cd config-server && mvn spring-boot:run
 
-   # Terminal 3 - Auth Service
+   # 3. Auth Service
    cd auth-service && mvn spring-boot:run
 
-   # Terminal 4 - API Gateway
-   cd api-gateway && mvn spring-boot:run
-
-   # Terminal 5 - User Service
+   # 4. User Service
    cd user-service && mvn spring-boot:run
 
-   # Terminal 6 - Order Service
+   # 5. Order Service
    cd order-service && mvn spring-boot:run
+
+   # 6. API Gateway
+   cd api-gateway && mvn spring-boot:run
    ```
+
+4. **Verify services**
+   - Eureka Dashboard: http://localhost:8761
+   - All services should be registered
 
 ### Running with Docker Compose
 
@@ -167,25 +212,34 @@ docker-compose up -d
 # View logs
 docker-compose logs -f
 
+# Check status
+docker-compose ps
+
 # Stop all services
 docker-compose down
 ```
 
 ## 📖 API Documentation
 
-Once services are running, access Swagger UI:
+### Swagger UI Access
+| Service | URL |
+|---------|-----|
+| Auth Service | http://localhost:8090/swagger-ui.html |
+| User Service | http://localhost:8081/swagger-ui.html |
+| Order Service | http://localhost:8082/swagger-ui.html |
+| API Gateway (Aggregated) | http://localhost:8080/swagger-ui.html |
 
-- **Auth Service**: http://localhost:8090/swagger-ui.html
-- **User Service**: http://localhost:8081/swagger-ui.html
-- **Order Service**: http://localhost:8082/swagger-ui.html
-- **API Gateway (Aggregated)**: http://localhost:8080/swagger-ui.html
+### Service URLs
 
-## 🔗 Service Endpoints
+| Service | Direct URL | Via Gateway |
+|---------|------------|-------------|
+| Auth | http://localhost:8090/auth/** | http://localhost:8080/api/auth/** |
+| Users | http://localhost:8081/users/** | http://localhost:8080/api/users/** |
+| Orders | http://localhost:8082/orders/** | http://localhost:8080/api/orders/** |
 
-### Eureka Dashboard
-- http://localhost:8761
+## 🔗 API Endpoints
 
-### Auth Service API (Public - No Token Required)
+### Auth Service (Public - No Token Required)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/auth/register` | Register a new user |
@@ -193,45 +247,35 @@ Once services are running, access Swagger UI:
 | POST | `/auth/refresh` | Refresh access token |
 | POST | `/auth/logout` | Logout and invalidate tokens |
 | GET | `/auth/validate` | Validate JWT token |
+| GET | `/auth/health` | Health check |
 
-### User Service API
+### User Service (Token Required)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/users` | Get all users (paginated) |
 | GET | `/users/{id}` | Get user by ID |
 | GET | `/users/email/{email}` | Get user by email |
 | GET | `/users/search?q=&status=` | Search users |
+| GET | `/users/status/{status}` | Get users by status |
 | POST | `/users` | Create new user |
 | PUT | `/users/{id}` | Update user |
-| DELETE | `/users/{id}` | Delete user |
+| DELETE | `/users/{id}` | Delete user (Admin only) |
 
-### Order Service API
+### Order Service (Token Required)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/orders` | Get all orders (paginated) |
 | GET | `/orders/{id}` | Get order by ID |
+| GET | `/orders/number/{orderNumber}` | Get order by number |
 | GET | `/orders/user/{userId}` | Get orders by user |
 | GET | `/orders/search?q=&status=&userId=` | Search orders |
+| GET | `/orders/status/{status}` | Get orders by status |
+| GET | `/orders/statistics` | Get order statistics |
 | POST | `/orders` | Create new order |
 | PUT | `/orders/{id}` | Update order |
 | PATCH | `/orders/{id}/status?status=` | Update order status |
 | POST | `/orders/{id}/cancel` | Cancel order |
-| DELETE | `/orders/{id}` | Delete order |
-| GET | `/orders/statistics` | Get order statistics |
-
-### Via API Gateway
-All endpoints are accessible through the gateway with `/api` prefix:
-- Auth Service: `http://localhost:8080/api/auth/**` (No token required)
-- User Service: `http://localhost:8080/api/users/**` (Token required)
-- Order Service: `http://localhost:8080/api/orders/**` (Token required)
-
-## 📊 Health & Metrics
-
-### Actuator Endpoints
-- Health: `http://localhost:{port}/actuator/health`
-- Info: `http://localhost:{port}/actuator/info`
-- Metrics: `http://localhost:{port}/actuator/metrics`
-- Prometheus: `http://localhost:{port}/actuator/prometheus`
+| DELETE | `/orders/{id}` | Delete order (Admin only) |
 
 ## 🧪 Sample Requests
 
@@ -245,7 +289,7 @@ curl -X POST http://localhost:8080/api/auth/login \
   }'
 ```
 
-Response:
+**Response:**
 ```json
 {
   "success": true,
@@ -257,27 +301,37 @@ Response:
     "user": {
       "id": 1,
       "username": "admin",
+      "email": "admin@actora.com",
+      "fullName": "Admin User",
       "roles": ["ROLE_ADMIN", "ROLE_MANAGER", "ROLE_USER"]
     }
-  }
+  },
+  "message": "Login successful"
 }
 ```
 
-### 2. Create User (with Token)
+### 2. Register New User
 ```bash
-curl -X POST http://localhost:8080/api/users \
+curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <access_token>" \
   -d '{
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "+1-555-123-4567",
-    "address": "123 Main St, City"
+    "username": "newuser",
+    "email": "newuser@example.com",
+    "password": "securepass123",
+    "firstName": "New",
+    "lastName": "User",
+    "phone": "+1-555-000-0000",
+    "address": "123 New Street"
   }'
 ```
 
-### 3. Create Order (with Token)
+### 3. Get All Users (with Token)
+```bash
+curl -X GET "http://localhost:8080/api/users?page=0&size=10" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### 4. Create Order (with Token)
 ```bash
 curl -X POST http://localhost:8080/api/orders \
   -H "Content-Type: application/json" \
@@ -297,13 +351,34 @@ curl -X POST http://localhost:8080/api/orders \
   }'
 ```
 
-### 4. Refresh Token
+### 5. Refresh Token
 ```bash
 curl -X POST http://localhost:8080/api/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{
     "refreshToken": "<refresh_token>"
   }'
+```
+
+### 6. Update Order Status (Manager/Admin only)
+```bash
+curl -X PATCH "http://localhost:8080/api/orders/1/status?status=CONFIRMED" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+## 📊 Health & Metrics
+
+### Actuator Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `/actuator/health` | Health status |
+| `/actuator/info` | Application info |
+| `/actuator/metrics` | Application metrics |
+| `/actuator/prometheus` | Prometheus format metrics |
+
+### Example Health Check
+```bash
+curl http://localhost:8081/actuator/health
 ```
 
 ## 🔧 Configuration
@@ -314,52 +389,126 @@ curl -X POST http://localhost:8080/api/auth/refresh \
 | `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE` | Eureka server URL | `http://localhost:8761/eureka/` |
 | `SPRING_CLOUD_CONFIG_URI` | Config server URL | `http://localhost:8888` |
 | `SPRING_PROFILES_ACTIVE` | Active Spring profile | `default` |
+| `JWT_SECRET` | JWT signing secret | (configured in properties) |
+| `JWT_ACCESS_TOKEN_EXPIRATION` | Access token expiry (ms) | `3600000` (1 hour) |
+| `JWT_REFRESH_TOKEN_EXPIRATION` | Refresh token expiry (ms) | `86400000` (24 hours) |
+
+### JWT Configuration (auth-service)
+```properties
+jwt.secret=ActoraSecretKeyForJWTAuthenticationMustBeAtLeast256BitsLongForHS256Algorithm2024
+jwt.access-token-expiration=3600000
+jwt.refresh-token-expiration=86400000
+```
 
 ## 📁 Project Structure
 
 ```
 multi-module-app/
-├── pom.xml                    # Parent POM
-├── docker-compose.yml         # Docker orchestration
-├── README.md
-├── common-lib/                # Shared library
-���   └── src/main/java/com/actora/common/
-│       ├── dto/               # Common DTOs
-│       ├── exception/         # Global exceptions
-│       ├── constants/         # Constants
-│       └── util/              # Utilities
-├── discovery-server/          # Eureka Server
-├── config-server/             # Config Server
-│   └── src/main/resources/configs/  # Service configs
-├── api-gateway/               # API Gateway
+├── pom.xml                         # Parent POM with dependency management
+├── docker-compose.yml              # Docker orchestration
+├── README.md                       # This file
+│
+├── common-lib/                     # 🔧 SHARED LIBRARY
+│   └── src/main/java/com/actora/common/
+│       ├── dto/                    # ApiResponse, PageResponse, ErrorDetails
+│       ├── exception/              # Global exceptions & handler
+│       ├── security/               # 🔐 SHARED SECURITY COMPONENTS
+│       │   ├── UserPrincipal.java           # Auth principal
+│       │   ├── GatewayAuthenticationFilter  # JWT filter for services
+│       │   ├── SecurityConstants.java       # Header constants
+│       │   └── SecurityUtils.java           # Security utilities
+│       ├── constants/              # Application constants
+│       └── util/                   # Utility classes
+│
+├── discovery-server/               # Eureka Server
 │   └── src/main/java/.../
-│       ├── config/            # Gateway config
-│       └── controller/        # Fallback controllers
-├── user-service/              # User microservice
+│       └── DiscoveryServerApplication.java
+│
+├── config-server/                  # Config Server
+│   └── src/main/resources/configs/ # Service configurations
+│
+├── api-gateway/                    # 🚪 API GATEWAY
 │   └── src/main/java/.../
-│       ├── controller/
+│       ├── filter/
+│       │   └── AuthenticationFilter.java  # JWT validation (WebFlux)
+│       └── ApiGatewayApplication.java
+│
+├── auth-service/                   # 🔐 AUTHENTICATION SERVICE
+│   └── src/main/java/.../
+│       ├── controller/AuthController.java
+│       ├── service/AuthService.java
+│       ├── security/
+│       │   ├── JwtService.java            # JWT generation/validation
+│       │   └── CustomUserDetailsService.java
+│       ├── entity/
+│       │   ├── AuthUser.java              # Auth credentials only
+│       │   ├── Role.java
+│       │   └── RefreshToken.java
+│       ├── repository/
+│       ├── dto/
+│       └── client/UserServiceClient.java  # Feign client
+│
+├── user-service/                   # 👤 USER SERVICE
+│   └── src/main/java/.../
+│       ├── controller/UserController.java # @PreAuthorize secured
 │       ├── service/
 │       ├── repository/
-│       ├── entity/
+│       ├── entity/User.java               # User profile data
 │       ├── dto/
-│       └── mapper/
-└── order-service/             # Order microservice
+│       ├── mapper/
+│       └── config/SecurityConfig.java     # Uses common-lib
+│
+└── order-service/                  # 📦 ORDER SERVICE
     └── src/main/java/.../
-        ├── controller/
+        ├── controller/OrderController.java # @PreAuthorize secured
         ├── service/
         ├── repository/
         ├── entity/
         ├── dto/
         ├── mapper/
-        └── client/            # Feign clients
+        ├── client/UserClient.java         # Feign client
+        └── config/SecurityConfig.java     # Uses common-lib
 ```
+
+## 🏛️ Architecture Principles
+
+### 1. DRY (Don't Repeat Yourself)
+- Shared security components in `common-lib`
+- Common DTOs and exceptions centralized
+- No duplicate code across services
+
+### 2. Separation of Concerns
+- `auth-service`: Only authentication/authorization (credentials, tokens, roles)
+- `user-service`: Only user profile data (name, contact, address)
+- Each service has a single responsibility
+
+### 3. Loose Coupling
+- Services communicate via Feign clients
+- Circuit breaker pattern for resilience
+- Gateway handles cross-cutting concerns
+
+### 4. Security by Design
+- JWT validation at gateway level
+- Role-based access control
+- Method-level security with @PreAuthorize
+
+## 🐳 Docker Services
+
+| Container | Image | Port | Health Check |
+|-----------|-------|------|--------------|
+| discovery-server | Custom | 8761 | /actuator/health |
+| config-server | Custom | 8888 | /actuator/health |
+| auth-service | Custom | 8090 | /actuator/health |
+| api-gateway | Custom | 8080 | /actuator/health |
+| user-service | Custom | 8081 | /actuator/health |
+| order-service | Custom | 8082 | /actuator/health |
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## 📄 License
@@ -372,4 +521,8 @@ This project is licensed under the Apache 2.0 License.
 
 ---
 
-⭐ Star this repository if you find it helpful!
+⭐ **Star this repository if you find it helpful!**
+
+## 📞 Support
+
+For questions or issues, please open a GitHub issue.
